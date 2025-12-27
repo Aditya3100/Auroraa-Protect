@@ -1,0 +1,96 @@
+# ------------------------
+# Python
+# ------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+*.pyc
+*.pyo
+*.pyd
+
+# ------------------------
+# Virtual Environment
+# ------------------------
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ------------------------
+# Distribution / Packaging
+# ------------------------
+build/
+dist/
+*.egg-info/
+*.wheel
+
+# ------------------------
+# IDEs / Editors
+# ------------------------
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.iml
+
+# ------------------------
+# Logs
+# ------------------------
+*.log
+logs/
+*.out
+
+# ------------------------
+# OS-specific
+# ------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ------------------------
+# Secrets / Configs
+# ------------------------
+.env
+.env.*.local
+.envrc
+*.key
+*.pem
+*.crt
+
+# ------------------------
+# Database / Migrations
+# ------------------------
+*.sqlite3
+*.db
+*.sqlite
+migrations/__pycache__/
+alembic.ini
+
+# ------------------------
+# Jupyter / Notebooks
+# ------------------------
+.ipynb_checkpoints/
+
+# ------------------------
+# Optional: Media / Uploads
+# ------------------------
+uploads/
+media/
+staticfiles/
+
+# ------------------------
+# Pytest / Coverage
+# ------------------------
+.coverage
+htmlcov/
+*.cover
+*.py,cover
+.cache/
+nosetests.xml
+coverage.xml
+*.prof
