@@ -7,13 +7,28 @@ from docx import Document
 
 
 # ---------- IMAGE ----------
+def _jpeg_quality_for_size(size_bytes: int) -> int:
+    if size_bytes < 80_000:
+        return 85
+    if size_bytes < 200_000:
+        return 90
+    return 93
+
+
 def embed_image_watermark(image_bytes: bytes, signature: str) -> bytes:
     img = Image.open(io.BytesIO(image_bytes))
-    original_format = img.format  # JPEG, PNG, WEBP, etc.
+    original_format = (img.format or "PNG").upper()
 
-    img = img.convert("RGB")
+    # Strip metadata (important for size stability)
+    img.info.pop("exif", None)
+
+    # Convert to RGB safely
+    if img.mode not in ("RGB", "RGBA"):
+        img = img.convert("RGB")
+
     pixels = np.array(img, dtype=np.uint8)
 
+    # Prepare watermark bits (256 bits max)
     binary = ''.join(format(ord(c), '08b') for c in signature[:32])
     capacity = pixels.shape[0] * pixels.shape[1]
 
@@ -29,17 +44,58 @@ def embed_image_watermark(image_bytes: bytes, signature: str) -> bytes:
             idx += 1
 
     out = io.BytesIO()
+    watermarked = Image.fromarray(pixels, mode="RGB")
 
-    # ✅ SAVE USING ORIGINAL FORMAT
-    Image.fromarray(pixels, mode="RGB").save(
-        out,
-        format=original_format,
-        quality=95 if original_format == "JPEG" else None,
-        optimize=True
-    )
+    # ---------- FORMAT-SPECIFIC SAVING ----------
+    if original_format in ("JPEG", "JPG"):
+        quality = _jpeg_quality_for_size(len(image_bytes))
+        watermarked.save(
+            out,
+            format="JPEG",
+            quality=quality,
+            subsampling=2,     # preserve 4:2:0
+            optimize=True
+        )
+
+    elif original_format == "PNG":
+        watermarked.save(
+            out,
+            format="PNG",
+            optimize=True,
+            compress_level=9
+        )
+
+    elif original_format == "WEBP":
+        watermarked.save(
+            out,
+            format="WEBP",
+            quality=90,
+            method=6
+        )
+
+    elif original_format == "TIFF":
+        watermarked.save(
+            out,
+            format="TIFF",
+            compression="tiff_deflate"
+        )
+
+    elif original_format == "BMP":
+        watermarked.save(out, format="BMP")
+
+    elif original_format == "GIF":
+        # GIF must be palette-based
+        watermarked.convert("P", palette=Image.ADAPTIVE).save(
+            out,
+            format="GIF",
+            optimize=True
+        )
+
+    else:
+        # Safe fallback
+        watermarked.save(out, format="PNG", optimize=True)
 
     return out.getvalue()
-
 
 # ---------- PDF ----------
 def embed_pdf_watermark(pdf_bytes: bytes, asset_id: str, signature: str) -> bytes:
