@@ -1,7 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Response, Form
 from sqlalchemy.orm import Session
-from datetime import datetime
-import uuid
 import hashlib
 
 from app.database.database import get_db
@@ -29,8 +27,6 @@ async def upload_and_watermark(
         (content_hash + owner_id).encode()
     ).hexdigest()
 
-    asset_id = str(uuid.uuid4())
-
     mime = (file.content_type or "application/octet-stream") \
         .split(";")[0].lower()
 
@@ -38,18 +34,15 @@ async def upload_and_watermark(
         watermarked = embed_watermark(
             raw,
             mime,
-            asset_id,
-            signature
+            signature=signature  # asset id not needed for images
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     record = Watermark(
-        asset_id=asset_id,
         owner_id=owner_id,
         content_type=map_content_type(mime),
         mime_type=mime,
-        issued_at=datetime.utcnow(),
         content_hash=content_hash,
         signature_hash=signature,
         status="active"
@@ -57,15 +50,16 @@ async def upload_and_watermark(
 
     db.add(record)
     db.commit()
+    db.refresh(record)  # 🔑 ensure ID is available
 
     return Response(
         content=watermarked,
         media_type=mime,
         headers={
-            "X-Auroraa-Asset-ID": asset_id
+            # ✅ single canonical ID
+            "X-Auroraa-Asset-ID": record.id
         }
     )
-
 
 @waterrouter.post("/verify")
 async def verify_watermark(
@@ -77,7 +71,7 @@ async def verify_watermark(
     content_hash = hash_content(raw)
 
     record = db.query(Watermark).filter(
-        Watermark.asset_id == asset_id,
+        Watermark.id == asset_id,
         Watermark.content_hash == content_hash,
         Watermark.status == "active"
     ).first()
@@ -90,6 +84,6 @@ async def verify_watermark(
         "owner_id": record.owner_id,
         "content_type": record.content_type,
         "mime_type": record.mime_type,
-        "issued_at": record.issued_at,
+        "created_at": record.created_at,
         "algorithm_version": record.algorithm_version
     }

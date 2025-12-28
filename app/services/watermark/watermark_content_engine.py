@@ -19,16 +19,15 @@ def embed_image_watermark(image_bytes: bytes, signature: str) -> bytes:
     img = Image.open(io.BytesIO(image_bytes))
     original_format = (img.format or "PNG").upper()
 
-    # Strip metadata (important for size stability)
+    # Strip metadata (size stability)
     img.info.pop("exif", None)
 
-    # Convert to RGB safely
     if img.mode not in ("RGB", "RGBA"):
         img = img.convert("RGB")
 
     pixels = np.array(img, dtype=np.uint8)
 
-    # Prepare watermark bits (256 bits max)
+    # Embed up to 256 bits
     binary = ''.join(format(ord(c), '08b') for c in signature[:32])
     capacity = pixels.shape[0] * pixels.shape[1]
 
@@ -46,14 +45,14 @@ def embed_image_watermark(image_bytes: bytes, signature: str) -> bytes:
     out = io.BytesIO()
     watermarked = Image.fromarray(pixels, mode="RGB")
 
-    # ---------- FORMAT-SPECIFIC SAVING ----------
+    # ---------- FORMAT-SPECIFIC SAVE ----------
     if original_format in ("JPEG", "JPG"):
         quality = _jpeg_quality_for_size(len(image_bytes))
         watermarked.save(
             out,
             format="JPEG",
             quality=quality,
-            subsampling=2,     # preserve 4:2:0
+            subsampling=2,
             optimize=True
         )
 
@@ -84,7 +83,6 @@ def embed_image_watermark(image_bytes: bytes, signature: str) -> bytes:
         watermarked.save(out, format="BMP")
 
     elif original_format == "GIF":
-        # GIF must be palette-based
         watermarked.convert("P", palette=Image.ADAPTIVE).save(
             out,
             format="GIF",
@@ -92,10 +90,10 @@ def embed_image_watermark(image_bytes: bytes, signature: str) -> bytes:
         )
 
     else:
-        # Safe fallback
         watermarked.save(out, format="PNG", optimize=True)
 
     return out.getvalue()
+
 
 # ---------- PDF ----------
 def embed_pdf_watermark(pdf_bytes: bytes, asset_id: str, signature: str) -> bytes:
@@ -126,14 +124,23 @@ def embed_docx_watermark(docx_bytes: bytes, asset_id: str, signature: str) -> by
 
 
 # ---------- DISPATCHER ----------
-def embed_watermark(content: bytes, mime: str, asset_id: str, signature: str) -> bytes:
+def embed_watermark(
+    content: bytes,
+    mime: str,
+    signature: str,
+    asset_id: str | None = None
+) -> bytes:
     if mime.startswith("image/"):
         return embed_image_watermark(content, signature)
 
     if mime == "application/pdf":
+        if not asset_id:
+            raise ValueError("asset_id required for PDF watermarking")
         return embed_pdf_watermark(content, asset_id, signature)
 
     if mime.endswith("wordprocessingml.document"):
+        if not asset_id:
+            raise ValueError("asset_id required for DOCX watermarking")
         return embed_docx_watermark(content, asset_id, signature)
 
     raise ValueError("Unsupported content type")

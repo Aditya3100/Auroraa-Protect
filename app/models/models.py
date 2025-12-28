@@ -9,16 +9,11 @@ class Watermark(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
-    asset_id = Column(String(255), nullable=False, index=True)
     owner_id = Column(String(36), nullable=False, index=True)
 
-    # semantic category
     content_type = Column(String(20), nullable=False, index=True)
-
-    # exact MIME type
     mime_type = Column(String(100), nullable=False)
 
-    issued_at = Column(DateTime, nullable=False)
     signature_hash = Column(String(64), nullable=False)
     content_hash = Column(String(64), nullable=False)
 
@@ -30,8 +25,7 @@ class Watermark(Base):
     __table_args__ = (
         Index(
             "ix_watermark_verify",
-            "asset_id",
-            "signature_hash",
+            "id",            
             "content_hash"
         ),
     )

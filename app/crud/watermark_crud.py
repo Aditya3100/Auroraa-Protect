@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.models import Watermark
 from app.schemas.watermark_schemas import WatermarkCreate
 
-# ---------- ENUM MAPPER ----------
+# ---------- CONTENT TYPE MAPPER ----------
 def map_content_type(mime: str) -> str:
     mime = mime.split(";")[0].lower()
 
