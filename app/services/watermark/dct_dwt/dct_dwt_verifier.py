@@ -15,7 +15,9 @@ def verify_robust_watermark(
     if confidence >= 0.75:
         status = "verified"
     elif confidence >= 0.6:
-        status = "weak"
+        status = "most"
+    elif confidence >= 0.55:
+        status = "likely"    
     else:
         status = "not_verified"
 
