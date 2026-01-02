@@ -15,7 +15,7 @@ class Watermark(Base):
     mime_type = Column(String(100), nullable=False)
 
     signature_hash = Column(String(64), nullable=True)
-    content_hash = Column(String(64), nullable=True)
+    # content_hash = Column(String(64), nullable=True)
 
     algorithm_version = Column(String(20), nullable=False, default="v1")
     status = Column(String(20), nullable=False, default="active")
@@ -26,7 +26,6 @@ class Watermark(Base):
         Index(
             "ix_watermark_verify",
             "id",            
-            "content_hash",
             "status"
         ),
     )
