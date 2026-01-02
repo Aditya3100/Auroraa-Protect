@@ -6,10 +6,10 @@ from app.services.watermark.dct_dwt.dct_dwt_extractor import extract_confidence
 
 def verify_robust_watermark(
     image_bytes: bytes,
-    asset_id: str
+    owner_id: str
 ) -> dict:
 
-    bits = generate_bits(asset_id)
+    bits = generate_bits(owner_id)
     confidence = extract_confidence(image_bytes, bits)
 
     if confidence >= 0.75:

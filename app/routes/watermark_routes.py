@@ -86,7 +86,7 @@ waterrouter = APIRouter(prefix="/watermark", tags=["Watermark"])
 async def upload_and_watermark(
     file: UploadFile = File(...),
     owner_id: str = Form(...),
-    mode: str = Form("lsb"),   # 👈 NEW
+    mode: str = Form("robust"),   # 👈 NEW
     db: Session = Depends(get_db)
 ):
     raw = await file.read()
@@ -116,16 +116,53 @@ async def upload_and_watermark(
     )
 
 
+# @waterrouter.post("/verify")
+# async def verify_watermark(
+#     file: UploadFile = File(...),
+#     watermark_id: str | None = Form(None),
+#     owner_id: str = Form(...),
+#     mode: str = Form("robust"),
+#     db: Session = Depends(get_db)
+# ):
+#     raw = await file.read()
+
+#     if mode == "robust":
+#         return verify_robust_watermark(raw, owner_id)
+#     else:
+#         return verify_image_watermark(raw, watermark_id, db)
+
 @waterrouter.post("/verify")
 async def verify_watermark(
     file: UploadFile = File(...),
-    watermark_id: str = Form(...),
+    owner_id: str = Form(...),
     mode: str = Form("robust"),
+    watermark_id: str | None = Form(None),
     db: Session = Depends(get_db)
 ):
     raw = await file.read()
 
     if mode == "robust":
-        return verify_robust_watermark(raw, watermark_id)
+        result = verify_robust_watermark(raw, owner_id)
+        result["mode"] = "robust"
+        return result
+
+    elif mode == "lsb":
+        if not watermark_id:
+            raise HTTPException(
+                status_code=400,
+                detail="watermark_id is required for LSB verification"
+            )
+
+        result = verify_image_watermark(raw, watermark_id, db)
+        result["mode"] = "lsb"
+        result["note"] = (
+            "Exact verification. Image must be unmodified."
+        )
+        return result
+
     else:
-        return verify_image_watermark(raw, watermark_id, db)
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid mode. Use 'robust' or 'lsb'."
+        )
+

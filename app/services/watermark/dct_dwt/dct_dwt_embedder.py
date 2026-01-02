@@ -5,10 +5,10 @@ import hashlib
 
 
 # =========================================================
-# BIT GENERATION (FROM ASSET ID)
+# BIT GENERATION (FROM OWNERS ID)
 # =========================================================
-def generate_bits(asset_id: str, length: int = 32):
-    digest = hashlib.sha256(asset_id.encode()).digest()
+def generate_bits(owner_id: str, length: int = 32):
+    digest = hashlib.sha256(owner_id.encode()).digest()
     return np.unpackbits(np.frombuffer(digest, dtype=np.uint8))[:length]
 
 
@@ -17,7 +17,7 @@ def generate_bits(asset_id: str, length: int = 32):
 # =========================================================
 def embed_robust_watermark(
     image_bytes: bytes,
-    asset_id: str,
+    owner_id: str,
     strength: float = 8.0,
     repeat: int = 20
 ) -> bytes:
@@ -27,7 +27,7 @@ def embed_robust_watermark(
     if img is None:
         raise ValueError("Invalid image")
 
-    bits = generate_bits(asset_id)
+    bits = generate_bits(owner_id)
 
     # Convert to YCrCb
     ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
