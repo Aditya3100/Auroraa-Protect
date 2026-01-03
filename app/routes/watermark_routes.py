@@ -58,19 +58,75 @@ async def upload_and_watermark(
         }
     )
 
+# @waterrouter.post("/verify")
+# async def verify_watermark(
+#     file: UploadFile = File(...),
+#     owner_id: str = Form(...),
+#     db: Session = Depends(get_db)  # db can stay if you plan future checks
+# ):
+#     raw = await file.read()
+
+#     try:
+#         return verify_robust_watermark(
+#             image_bytes=raw,
+#             owner_id=owner_id
+#         )
+#     except Exception as e:
+#         raise HTTPException(status_code=400, detail=str(e))
+
 @waterrouter.post("/verify")
 async def verify_watermark(
     file: UploadFile = File(...),
     owner_id: str = Form(...),
-    db: Session = Depends(get_db)  # db can stay if you plan future checks
+    db: Session = Depends(get_db)
 ):
     raw = await file.read()
 
     try:
-        return verify_robust_watermark(
+        result = verify_robust_watermark(
             image_bytes=raw,
             owner_id=owner_id
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    # -------------------------------
+    # UX + Platform interpretation
+    # -------------------------------
+    confidence = result["confidence"]
+    status = result["status"]
+
+    if status == "verified":
+        ux_label = "Verified Original"
+        ux_message = (
+            "This image is verified as authentic and issued by Auroraa for this owner."
+        )
+    elif status == "most":
+        ux_label = "Verified, but Modified"
+        ux_message = (
+            "This image is verified as authentic and issued by Auroraa, "
+            "but it has been modified (for example, shared or compressed)."
+        )
+    elif status == "likely":
+        ux_label = "Likely Authentic"
+        ux_message = (
+            "This image likely belongs to this owner, but it has been heavily modified."
+        )
+    else:
+        ux_label = "Not Verified"
+        ux_message = (
+            "This image could not be verified as authentic."
+        )
+
+    return {
+        "verified": result["verified"],
+        "issued_by_auroraa": result["verified"],  # 🔐 platform verification
+        "confidence": confidence,
+        "status": status,
+        "ux": {
+            "label": ux_label,
+            "message": ux_message
+        }
+    }
+
 
