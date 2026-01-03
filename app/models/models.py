@@ -25,7 +25,7 @@ class Watermark(Base):
     __table_args__ = (
         Index(
             "ix_watermark_verify",
-            "id",            
+            "owner_id",
             "status"
         ),
     )

@@ -3,14 +3,22 @@ import numpy as np
 import pywt
 import hashlib
 
+import os
+
+AURORAA_SECRET = os.getenv("AURORAA_WATERMARK_SECRET", "auroraa-dev-secret")
+
 
 # =========================================================
 # BIT GENERATION (FROM OWNERS ID)
 # =========================================================
-def generate_bits(owner_id: str, length: int = 32):
-    digest = hashlib.sha256(owner_id.encode()).digest()
-    return np.unpackbits(np.frombuffer(digest, dtype=np.uint8))[:length]
+# def generate_bits(owner_id: str, length: int = 32):
+#     digest = hashlib.sha256(owner_id.encode()).digest()
+#     return np.unpackbits(np.frombuffer(digest, dtype=np.uint8))[:length]
 
+def generate_bits(owner_id: str, length: int = 32):
+    payload = f"{owner_id}:{AURORAA_SECRET}".encode()
+    digest = hashlib.sha256(payload).digest()
+    return np.unpackbits(np.frombuffer(digest, dtype=np.uint8))[:length]
 
 # =========================================================
 # ROBUST DWT + DCT WATERMARK EMBEDDER
