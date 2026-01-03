@@ -50,7 +50,8 @@ async def upload_and_watermark(
 
     return Response(
         content=watermarked_bytes,
-        media_type=mime,
+        # media_type=mime,
+        media_type="image/jpeg",
         headers={
             "X-Auroraa-Asset-ID": str(record.id),
             "Content-Disposition": f'inline; filename="{file.filename}"'

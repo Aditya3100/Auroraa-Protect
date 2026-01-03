@@ -2,6 +2,7 @@ import hashlib
 import numpy as np
 from app.services.watermark.dct_dwt.dct_dwt_embedder import generate_bits
 from app.services.watermark.dct_dwt.dct_dwt_extractor import extract_confidence
+from app.services.watermark.dct_dwt.dct_dwt_embedder import hamming_encode
 
 
 def verify_robust_watermark(
@@ -10,6 +11,7 @@ def verify_robust_watermark(
 ) -> dict:
 
     bits = generate_bits(owner_id)
+    bits = hamming_encode(bits) 
     confidence = extract_confidence(image_bytes, bits)
 
     if confidence >= 0.75:

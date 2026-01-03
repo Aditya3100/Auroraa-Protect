@@ -7,6 +7,26 @@ import os
 
 AURORAA_SECRET = os.getenv("AURORAA_WATERMARK_SECRET", "auroraa-dev-secret")
 
+# =========================================================
+# ECC: Hamming (7,4)
+# =========================================================
+def hamming_encode(bits: np.ndarray) -> np.ndarray:
+    encoded = []
+
+    for i in range(0, len(bits), 4):
+        d = bits[i:i+4]
+        if len(d) < 4:
+            d = np.pad(d, (0, 4 - len(d)))
+
+        d1, d2, d3, d4 = d
+
+        p1 = d1 ^ d2 ^ d4
+        p2 = d1 ^ d3 ^ d4
+        p3 = d2 ^ d3 ^ d4
+
+        encoded.extend([p1, p2, d1, p3, d2, d3, d4])
+
+    return np.array(encoded, dtype=np.uint8)
 
 # =========================================================
 # BIT GENERATION (FROM OWNERS ID)
@@ -35,7 +55,10 @@ def embed_robust_watermark(
     if img is None:
         raise ValueError("Invalid image")
 
+    # bits = generate_bits(owner_id)
     bits = generate_bits(owner_id)
+    bits = hamming_encode(bits)
+
 
     # Convert to YCrCb
     ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
