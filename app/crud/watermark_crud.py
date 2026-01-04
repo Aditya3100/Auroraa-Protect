@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.models import Watermark
-from app.schemas.watermark_schemas import WatermarkCreate
+# from app.schemas.watermark_schemas import WatermarkCreate
 
 import hashlib
 from sqlalchemy.orm import Session
