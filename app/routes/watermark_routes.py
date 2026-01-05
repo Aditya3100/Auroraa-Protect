@@ -6,10 +6,8 @@ from app.database.database import get_db
 from app.models.models import Watermark
 
 from app.crud.watermark_crud import map_content_type
-# from app.services.watermark.lsb.watermark_lsb_verify import verify_image_watermark
 from app.services.watermark.dct_dwt.dct_dwt_verifier import verify_robust_watermark
 from app.services.watermark.dct_dwt.dct_dwt_embedder import embed_robust_watermark
-# from app.services.watermark.lsb.watermark_lsb_embedder import embed_watermark
 from app.logger import get_current_user
 
 
