@@ -10,18 +10,19 @@ from app.crud.watermark_crud import map_content_type
 from app.services.watermark.dct_dwt.dct_dwt_verifier import verify_robust_watermark
 from app.services.watermark.dct_dwt.dct_dwt_embedder import embed_robust_watermark
 # from app.services.watermark.lsb.watermark_lsb_embedder import embed_watermark
-
+from app.logger import get_current_user
 
 
 waterrouter = APIRouter(prefix="/watermark", tags=["Watermark"])
 
-
 @waterrouter.post("/upload")
 async def upload_and_watermark(
     file: UploadFile = File(...),
-    owner_id: str = Form(...),
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    owner_id = current_user["user_id"]
+
     raw = await file.read()
     mime = (file.content_type or "").lower()
 
@@ -50,7 +51,6 @@ async def upload_and_watermark(
 
     return Response(
         content=watermarked_bytes,
-        # media_type=mime,
         media_type="image/jpeg",
         headers={
             "X-Auroraa-Asset-ID": str(record.id),
@@ -58,28 +58,14 @@ async def upload_and_watermark(
         }
     )
 
-# @waterrouter.post("/verify")
-# async def verify_watermark(
-#     file: UploadFile = File(...),
-#     owner_id: str = Form(...),
-#     db: Session = Depends(get_db)  # db can stay if you plan future checks
-# ):
-#     raw = await file.read()
-
-#     try:
-#         return verify_robust_watermark(
-#             image_bytes=raw,
-#             owner_id=owner_id
-#         )
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-
 @waterrouter.post("/verify")
 async def verify_watermark(
     file: UploadFile = File(...),
-    owner_id: str = Form(...),
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    owner_id = current_user["user_id"]
+
     raw = await file.read()
 
     try:
