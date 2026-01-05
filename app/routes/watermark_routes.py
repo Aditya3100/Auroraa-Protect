@@ -123,7 +123,7 @@ async def verify_watermark(
         "issued_by_auroraa": result["verified"],  # 🔐 platform verification
         "confidence": confidence,
         "status": status,
-        "ux": {
+        "message": {
             "label": ux_label,
             "message": ux_message
         }
