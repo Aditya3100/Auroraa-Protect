@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 import os
 
-OAUTH2_SCHEME = OAuth2PasswordBearer(tokenUrl=os.getenv("JWT_ISSUER"))
+OAUTH2_SCHEME = OAuth2PasswordBearer(tokenUrl=os.getenv("AUTH_LOGIN_URL"))
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ISSUER = os.getenv("JWT_ISSUER")
