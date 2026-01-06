@@ -46,8 +46,8 @@ def generate_bits(owner_id: str, length: int = 32):
 def embed_robust_watermark(
     image_bytes: bytes,
     owner_id: str,
-    strength: float = 8.0,
-    repeat: int = 20
+    strength: float = 6.0,  # STRENGTH = how hard you push each watermark mark
+    repeat: int = 20        # REPEAT = how many times you repeat the same bit
 ) -> bytes:
 
     # Decode image
