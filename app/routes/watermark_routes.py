@@ -113,4 +113,3 @@ async def verify_watermark(
         }
     }
 
-
