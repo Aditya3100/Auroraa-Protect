@@ -10,7 +10,7 @@ from app.services.watermark.dct_dwt.dct_dwt_verifier import verify_image_owner_r
 from app.services.watermark.dct_dwt.dct_dwt_embedder import embed_watermark_robust
 from app.logger import get_current_user
 
-from app.services.watermark.dct_dwt.watermark_config import interpret_verification_result, interpret_verification_result_self
+from app.services.watermark.dct_dwt.watermark_config import interpret_verification_result, ALGORITHM_VERSION
 
 waterrouter = APIRouter(prefix="/watermark", tags=["Watermark"])
 
@@ -30,14 +30,14 @@ async def embed_watermark(
         raise HTTPException(status_code=400, detail="Unsupported content type")
 
     image_bytes = await file.read()
-    signature_hash = hashlib.sha256(image_bytes).hexdigest()
+    # signature_hash = hashlib.sha256(image_bytes).hexdigest()
 
     watermark = Watermark(
         owner_id=owner_id,
         content_type=content_type,
         mime_type=file.content_type,
-        signature_hash=signature_hash,
-        algorithm_version="v2-dbscan",
+        # signature_hash=signature_hash,
+        algorithm_version=ALGORITHM_VERSION,
         status="active",
     )
 

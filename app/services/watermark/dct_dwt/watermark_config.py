@@ -14,6 +14,8 @@ STRENGTH = 18.0        # embedding amplitude
 REPEAT = 15            # redundancy per bit
 HASH_BITS = 48  # increase to 64 if needed
 
+ALGORITHM_VERSION="v2-dbscan"
+
 # Performance / safety limits
 MAX_CANDIDATES = 1000
 

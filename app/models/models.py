@@ -14,7 +14,7 @@ class Watermark(Base):
     content_type = Column(String(20), nullable=False, index=True)
     mime_type = Column(String(100), nullable=False)
 
-    signature_hash = Column(String(64), nullable=True)
+    # signature_hash = Column(String(64), nullable=True)
     # content_hash = Column(String(64), nullable=True)
 
     algorithm_version = Column(String(20), nullable=False, default="v1")
