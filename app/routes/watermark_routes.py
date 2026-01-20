@@ -100,4 +100,4 @@ async def verify_self(
     ]
 
     raw = verify_self_watermark(image_bytes, watermark_ids)
-    return interpret_verification_result_self(raw)
+    return interpret_verification_result(raw)
