@@ -69,7 +69,7 @@ async def embed_watermark(
         },
     )
 
-@waterrouter.post("/verify")
+@waterrouter.post("/verify-public")
 async def Public_verify_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -83,7 +83,7 @@ async def Public_verify_image(
 
     return interpret_verification_result(raw_result)
 
-@waterrouter.post("/verify-self")
+@waterrouter.post("/verify")
 async def verify_self(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
