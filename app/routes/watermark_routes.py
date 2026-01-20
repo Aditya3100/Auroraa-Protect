@@ -8,7 +8,7 @@ from app.models.models import Watermark
 from app.crud.watermark_crud import map_content_type
 from app.services.watermark.dct_dwt.dct_dwt_verifier import verify_image_owner_robust, verify_self_watermark
 from app.services.watermark.dct_dwt.dct_dwt_embedder import embed_watermark_robust
-from app.logger import get_current_user
+from app.logger import get_current_user, get_username_from_auth
 
 from app.services.watermark.dct_dwt.watermark_config import interpret_verification_result, ALGORITHM_VERSION
 
@@ -81,7 +81,18 @@ async def Public_verify_image(
         db=db
     )
 
-    return interpret_verification_result(raw_result)
+    result = interpret_verification_result(raw_result)
+
+    # 🔹 Public identity enrichment
+    if raw_result.get("owner_id"):
+        username = await get_username_from_auth(raw_result["owner_id"])
+        result["owner"] = {
+            "id": raw_result["owner_id"],
+            "username": username,
+        }
+
+    return result
+
 
 @waterrouter.post("/verify")
 async def verify_self(
