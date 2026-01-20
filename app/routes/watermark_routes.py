@@ -14,7 +14,7 @@ from app.services.watermark.dct_dwt.watermark_config import interpret_verificati
 
 waterrouter = APIRouter(prefix="/watermark", tags=["Watermark"])
 
-@waterrouter.post("/embed")
+@waterrouter.post("/upload")
 async def embed_watermark(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
@@ -69,7 +69,7 @@ async def embed_watermark(
         },
     )
 
-@waterrouter.post("/verify-image")
+@waterrouter.post("/verify")
 async def Public_verify_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
