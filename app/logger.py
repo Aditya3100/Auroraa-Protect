@@ -68,7 +68,7 @@ def get_current_user(token: str | None = Depends(OAUTH2_SCHEME)):
 # =========================
 
 async def get_username_from_auth(user_id: str) -> str | None:
-    url = f"{AUTH_BASE_URL}/user/{user_id}"
+    url = f"{AUTH_BASE_URL}/{user_id}"
 
     async with httpx.AsyncClient(timeout=2) as client:
         r = await client.get(url)

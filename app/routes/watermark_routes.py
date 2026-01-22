@@ -87,7 +87,7 @@ async def Public_verify_image(
     if raw_result.get("owner_id"):
         username = await get_username_from_auth(raw_result["owner_id"])
         result["owner"] = {
-            "id": raw_result["owner_id"],
+            # "id": raw_result["owner_id"],
             "username": username,
         }
 
