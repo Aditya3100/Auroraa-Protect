@@ -67,16 +67,32 @@ def get_current_user(token: str | None = Depends(OAUTH2_SCHEME)):
 # Public username lookup
 # =========================
 
+# async def get_username_from_auth(user_id: str) -> str | None:
+#     url = f"{AUTH_BASE_URL}/{user_id}"
+
+#     async with httpx.AsyncClient(timeout=2) as client:
+#         r = await client.get(url)
+
+#         print("AUTH RESPONSE:", r.status_code, r.text)
+
+#         if r.status_code != 200:
+#             return None
+
+#         data = r.json()
+#         return data.get("username")
+
 async def get_username_from_auth(user_id: str) -> str | None:
     url = f"{AUTH_BASE_URL}/{user_id}"
 
-    async with httpx.AsyncClient(timeout=2) as client:
-        r = await client.get(url)
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(2.0)) as client:
+            r = await client.get(url)
+    except httpx.RequestError as e:
+        print("AUTH NETWORK ERROR:", e)
+        return None
 
-        print("AUTH RESPONSE:", r.status_code, r.text)
+    if r.status_code != 200:
+        return None
 
-        if r.status_code != 200:
-            return None
+    return r.json().get("username")
 
-        data = r.json()
-        return data.get("username")
