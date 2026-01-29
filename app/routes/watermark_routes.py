@@ -10,8 +10,9 @@ from app.services.watermark.dct_dwt.dct_dwt_verifier import verify_image_owner_r
 from app.services.watermark.dct_dwt.dct_dwt_embedder import embed_watermark_robust
 from app.logger import get_current_user, get_username_from_auth
 
-from app.services.watermark.dct_dwt.watermark_config import interpret_verification_result, ALGORITHM_VERSION
+from app.services.watermark.dct_dwt.watermark_config import interpret_verification_result, ALGORITHM_VERSION, confidence_to_status
 from fastapi.concurrency import run_in_threadpool
+from datetime import datetime, timezone
 
 waterrouter = APIRouter(prefix="/watermark", tags=["Watermark"])
 
@@ -77,65 +78,56 @@ async def Public_verify_image(
 ):
     image_bytes = await file.read()
 
-    # raw_result = verify_image_owner_robust(
-    #     image_bytes=image_bytes,
-    #     db=db
-    # )
-
-    raw_result = await run_in_threadpool(
+    # Heavy verification off event loop
+    raw = await run_in_threadpool(
         verify_image_owner_robust,
         image_bytes=image_bytes,
         db=db
     )
 
-    # 🔹 Attach issued time from DB (if watermark matched)
-    if raw_result and raw_result.get("watermark_id"):
+    if raw is None:
+        return {
+            "verified": False,
+            "issued_by_auroraa": False,
+            "confidence": 0,
+            "status": "not_verified",
+            "issued_on": None,
+        }
+
+    confidence = raw["confidence"]
+    status = confidence_to_status(confidence)
+
+    # 🔹 Resolve issued_on from DB
+    issued_on = None
+    if raw.get("watermark_id"):
         wm = (
             db.query(Watermark.created_at)
-            .filter(Watermark.id == raw_result["watermark_id"])
+            .filter(Watermark.id == raw["watermark_id"])
             .first()
         )
-
         if wm and wm.created_at:
-            raw_result["created_at"] = wm.created_at
+            issued_on = wm.created_at.astimezone(timezone.utc).isoformat()
 
-    result = interpret_verification_result(raw_result)
+    response = {
+        "verified": status != "not_verified",
+        "issued_by_auroraa": status != "not_verified",
+        "confidence": round(confidence, 3),
+        "status": status,
+        "issued_on": issued_on,
+    }
 
-    # 🔹 Public identity enrichment
-    if raw_result.get("owner_id"):
+    # 🔹 Public username ONLY (never owner_id)
+    owner_id = raw.get("owner_id")
+    if owner_id:
         try:
-            username = await get_username_from_auth(raw_result["owner_id"])
+            username = await get_username_from_auth(owner_id)
             if username:
-                result["owner"] = {"username": username}
+                response["username"] = username
         except Exception as e:
-            # log but NEVER fail public verification
             print("Auth lookup failed:", e)
 
-    return result
+    return response
 
-
-# @waterrouter.post("/verify")
-# async def verify_self(
-#     file: UploadFile = File(...),
-#     current_user: dict = Depends(get_current_user),
-#     db: Session = Depends(get_db),
-# ):
-#     image_bytes = await file.read()
-
-#     # Only user's own watermarks
-#     watermark_ids = [
-#         wm.id for wm in db.query(Watermark).filter(
-#             Watermark.owner_id == current_user["user_id"],
-#             Watermark.status == "active",
-#             Watermark.created_at
-#         ).all()
-#     ]
-
-#     raw = verify_self_watermark(image_bytes, watermark_ids)
-#     return interpret_verification_result(raw)
-
-from fastapi import UploadFile, File, Depends
-from sqlalchemy.orm import Session
 
 @waterrouter.post("/verify")
 async def verify_self(
