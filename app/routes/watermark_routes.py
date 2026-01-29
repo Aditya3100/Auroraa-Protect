@@ -81,18 +81,52 @@ async def Public_verify_image(
         db=db
     )
 
+    # 🔹 Attach issued time from DB (if watermark matched)
+    if raw_result and raw_result.get("watermark_id"):
+        wm = (
+            db.query(Watermark.created_at)
+            .filter(Watermark.id == raw_result["watermark_id"])
+            .first()
+        )
+
+        if wm and wm.created_at:
+            raw_result["created_at"] = wm.created_at
+
     result = interpret_verification_result(raw_result)
 
     # 🔹 Public identity enrichment
     if raw_result.get("owner_id"):
         username = await get_username_from_auth(raw_result["owner_id"])
-        result["owner"] = {
-            # "id": raw_result["owner_id"],
-            "username": username,
-        }
+        if username:
+            result["owner"] = {
+                "username": username
+            }
 
     return result
 
+
+# @waterrouter.post("/verify")
+# async def verify_self(
+#     file: UploadFile = File(...),
+#     current_user: dict = Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     image_bytes = await file.read()
+
+#     # Only user's own watermarks
+#     watermark_ids = [
+#         wm.id for wm in db.query(Watermark).filter(
+#             Watermark.owner_id == current_user["user_id"],
+#             Watermark.status == "active",
+#             Watermark.created_at
+#         ).all()
+#     ]
+
+#     raw = verify_self_watermark(image_bytes, watermark_ids)
+#     return interpret_verification_result(raw)
+
+from fastapi import UploadFile, File, Depends
+from sqlalchemy.orm import Session
 
 @waterrouter.post("/verify")
 async def verify_self(
@@ -102,13 +136,28 @@ async def verify_self(
 ):
     image_bytes = await file.read()
 
-    # Only user's own watermarks
-    watermark_ids = [
-        wm.id for wm in db.query(Watermark).filter(
+    # Fetch ONLY what we need from DB
+    watermarks = (
+        db.query(Watermark.id, Watermark.created_at)
+        .filter(
             Watermark.owner_id == current_user["user_id"],
             Watermark.status == "active",
-        ).all()
-    ]
+        )
+        .all()
+    )
 
+    # Map id → created_at
+    watermark_created_at = {
+        wm.id: wm.created_at for wm in watermarks
+    }
+
+    watermark_ids = list(watermark_created_at.keys())
+
+    # Run verification
     raw = verify_self_watermark(image_bytes, watermark_ids)
+
+    # Attach issued time from DB
+    if raw and raw.get("watermark_id") in watermark_created_at:
+        raw["created_at"] = watermark_created_at[raw["watermark_id"]]
+
     return interpret_verification_result(raw)
