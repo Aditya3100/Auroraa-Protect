@@ -11,6 +11,7 @@ from app.services.watermark.dct_dwt.dct_dwt_embedder import embed_watermark_robu
 from app.logger import get_current_user, get_username_from_auth
 
 from app.services.watermark.dct_dwt.watermark_config import interpret_verification_result, ALGORITHM_VERSION
+from fastapi.concurrency import run_in_threadpool
 
 waterrouter = APIRouter(prefix="/watermark", tags=["Watermark"])
 
@@ -76,7 +77,13 @@ async def Public_verify_image(
 ):
     image_bytes = await file.read()
 
-    raw_result = verify_image_owner_robust(
+    # raw_result = verify_image_owner_robust(
+    #     image_bytes=image_bytes,
+    #     db=db
+    # )
+
+    raw_result = await run_in_threadpool(
+        verify_image_owner_robust,
         image_bytes=image_bytes,
         db=db
     )
@@ -96,11 +103,13 @@ async def Public_verify_image(
 
     # 🔹 Public identity enrichment
     if raw_result.get("owner_id"):
-        username = await get_username_from_auth(raw_result["owner_id"])
-        if username:
-            result["owner"] = {
-                "username": username
-            }
+        try:
+            username = await get_username_from_auth(raw_result["owner_id"])
+            if username:
+                result["owner"] = {"username": username}
+        except Exception as e:
+            # log but NEVER fail public verification
+            print("Auth lookup failed:", e)
 
     return result
 
