@@ -10,6 +10,7 @@ from .watermark_config import (
     confidence_to_status,
     interpret_verification_result,
 )
+from app.services.watermark.dct_dwt.correlation import correlate_watermark_signal
 
 # =========================================================
 # BIT GENERATION (PUBLIC, FIXED-LENGTH)
@@ -79,8 +80,6 @@ def verify_image_owner_robust(image_bytes: bytes, db: Session) -> dict:
         "status": "not_verified",
         "reason": "no_confident_match",
     }
-
-# ===========================================================================================================================
 
 # =========================================================
 # 2️⃣ SELF VERIFIER (CLAIMED WATERMARK_ID)
