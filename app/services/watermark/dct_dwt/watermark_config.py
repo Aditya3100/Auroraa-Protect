@@ -14,7 +14,7 @@ DCT_POS_B = (2, 4)
 # Robust embedding parameters (industry-style)
 STRENGTH = 24.0        # embedding amplitude
 REPEAT = 20            # redundancy per bit
-HASH_BITS = 64  # increase to 64 if needed
+HASH_BITS = 192  # increase to 64 if needed
 
 ALGORITHM_VERSION="v3-hmac"
 

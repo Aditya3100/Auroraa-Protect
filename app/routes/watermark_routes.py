@@ -142,41 +142,10 @@ async def verify_self(
     if not owner_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Fetch user's active watermarks (FULL ROWS)
-    watermarks = (
-        db.query(Watermark)
-        .filter(
-            Watermark.owner_id == owner_id,
-            Watermark.status == "active",
-        )
-        .all()
-    )
-
-    if not watermarks:
-        return {
-            "verified": False,
-            "issued_by_auroraa": False,
-            "confidence": 0.0,
-            "status": "not_verified",
-            "reason": "no_active_watermarks",
-        }
-
     # Run secure self verification (HMAC-bound)
     raw = verify_self_watermark(
         image_bytes,
-        watermarks,     # pass full DB rows
         owner_id,       # pass owner for crypto binding
     )
-
-    # Attach issued time (for response)
-    if raw and raw.get("watermark_id"):
-        wm = (
-            db.query(Watermark.created_at)
-            .filter(Watermark.id == raw["watermark_id"])
-            .first()
-        )
-
-        if wm and wm.created_at:
-            raw["created_at"] = wm.created_at
 
     return interpret_verification_result(raw)
