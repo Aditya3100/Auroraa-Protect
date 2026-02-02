@@ -3,6 +3,7 @@ import numpy as np
 import pywt
 import hashlib
 from .watermark_config import *
+from .crypto import generate_bits
 
 # =========================================================
 # OPTIONAL: GLOBAL BLOCK SHUFFLE (RECOMMENDED)
@@ -18,25 +19,9 @@ def _shuffled_blocks(h, w):
     return blocks
 
 # =========================================================
-# BIT GENERATION (PUBLIC, FIXED-LENGTH)
-# =========================================================
-def generate_bits(watermark_id: str) -> np.ndarray:
-    """
-    Generate a fixed-length bit sequence from watermark_id.
-    Public hash (no secret) for DB-scan compatibility.
-    """
-    digest = hashlib.sha256(watermark_id.encode()).digest()
-    return np.unpackbits(
-        np.frombuffer(digest, dtype=np.uint8)
-    )[:HASH_BITS]
-
-# =========================================================
 # EMBEDDER
 # =========================================================
-def embed_watermark_robust(
-    image_bytes: bytes,
-    watermark_id: str
-) -> bytes:
+def embed_watermark_robust(image_bytes, watermark_id, owner_id) -> bytes:
     """
     Embed a robust DB-scan watermark into an image.
     """
@@ -48,7 +33,7 @@ def embed_watermark_robust(
     if img is None:
         raise ValueError("Invalid image")
 
-    bits = generate_bits(watermark_id)
+    bits = generate_bits(owner_id, watermark_id)
 
     # Convert to Y channel
     ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)

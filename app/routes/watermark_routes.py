@@ -6,7 +6,7 @@ from app.database.database import get_db
 from app.models.models import Watermark
 
 from app.crud.watermark_crud import map_content_type
-from app.services.watermark.dct_dwt.dct_dwt_verifier import verify_image_owner_robust, verify_self_watermark
+from app.services.watermark.dct_dwt.dct_dwt_verifier import verify_self_watermark
 from app.services.watermark.dct_dwt.dct_dwt_embedder import embed_watermark_robust
 from app.logger import get_current_user, get_username_from_auth
 
@@ -55,6 +55,7 @@ async def embed_watermark(
         watermarked_bytes = embed_watermark_robust(
             image_bytes=image_bytes,
             watermark_id=watermark.id,
+            owner_id=owner_id
         )
     except Exception as e:
         db.delete(watermark)
@@ -71,63 +72,62 @@ async def embed_watermark(
         },
     )
 
-@waterrouter.post("/verify-public")
-async def Public_verify_image(
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-):
-    image_bytes = await file.read()
+# @waterrouter.post("/verify-public")
+# async def Public_verify_image(
+#     file: UploadFile = File(...),
+#     db: Session = Depends(get_db),
+# ):
+#     image_bytes = await file.read()
 
-    # Heavy verification off event loop
-    raw = await run_in_threadpool(
-        verify_image_owner_robust,
-        image_bytes=image_bytes,
-        db=db
-    )
+#     # Heavy verification off event loop
+#     raw = await run_in_threadpool(
+#         verify_image_owner_robust,
+#         image_bytes=image_bytes,
+#         db=db
+#     )
 
-    if raw is None:
-        return {
-            "verified": False,
-            "issued_by_auroraa": False,
-            "confidence": 0,
-            "status": "not_verified",
-            "issued_on": None,
-        }
+#     if raw is None:
+#         return {
+#             "verified": False,
+#             "issued_by_auroraa": False,
+#             "confidence": 0,
+#             "status": "not_verified",
+#             "issued_on": None,
+#         }
 
-    confidence = raw["confidence"]
-    status = confidence_to_status(confidence)
+#     confidence = raw["confidence"]
+#     status = confidence_to_status(confidence)
 
-    # 🔹 Resolve issued_on from DB
-    issued_on = None
-    if raw.get("watermark_id"):
-        wm = (
-            db.query(Watermark.created_at)
-            .filter(Watermark.id == raw["watermark_id"])
-            .first()
-        )
-        if wm and wm.created_at:
-            issued_on = wm.created_at.astimezone(timezone.utc).isoformat()
+#     # 🔹 Resolve issued_on from DB
+#     issued_on = None
+#     if raw.get("watermark_id"):
+#         wm = (
+#             db.query(Watermark.created_at)
+#             .filter(Watermark.id == raw["watermark_id"])
+#             .first()
+#         )
+#         if wm and wm.created_at:
+#             issued_on = wm.created_at.astimezone(timezone.utc).isoformat()
 
-    response = {
-        "verified": status != "not_verified",
-        "issued_by_auroraa": status != "not_verified",
-        "confidence": round(confidence, 3),
-        "status": status,
-        "issued_on": issued_on,
-    }
+#     response = {
+#         "verified": status != "not_verified",
+#         "issued_by_auroraa": status != "not_verified",
+#         "confidence": round(confidence, 3),
+#         "status": status,
+#         "issued_on": issued_on,
+#     }
 
-    # 🔹 Public username ONLY (never owner_id)
-    owner_id = raw.get("owner_id")
-    if owner_id:
-        try:
-            username = await get_username_from_auth(owner_id)
-            if username:
-                response["username"] = username
-        except Exception as e:
-            print("Auth lookup failed:", e)
+#     # 🔹 Public username ONLY (never owner_id)
+#     owner_id = raw.get("owner_id")
+#     if owner_id:
+#         try:
+#             username = await get_username_from_auth(owner_id)
+#             if username:
+#                 response["username"] = username
+#         except Exception as e:
+#             print("Auth lookup failed:", e)
 
-    return response
-
+#     return response
 
 @waterrouter.post("/verify")
 async def verify_self(
@@ -137,28 +137,46 @@ async def verify_self(
 ):
     image_bytes = await file.read()
 
-    # Fetch ONLY what we need from DB
+    owner_id = current_user.get("user_id")
+
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Fetch user's active watermarks (FULL ROWS)
     watermarks = (
-        db.query(Watermark.id, Watermark.created_at)
+        db.query(Watermark)
         .filter(
-            Watermark.owner_id == current_user["user_id"],
+            Watermark.owner_id == owner_id,
             Watermark.status == "active",
         )
         .all()
     )
 
-    # Map id → created_at
-    watermark_created_at = {
-        wm.id: wm.created_at for wm in watermarks
-    }
+    if not watermarks:
+        return {
+            "verified": False,
+            "issued_by_auroraa": False,
+            "confidence": 0.0,
+            "status": "not_verified",
+            "reason": "no_active_watermarks",
+        }
 
-    watermark_ids = list(watermark_created_at.keys())
+    # Run secure self verification (HMAC-bound)
+    raw = verify_self_watermark(
+        image_bytes,
+        watermarks,     # pass full DB rows
+        owner_id,       # pass owner for crypto binding
+    )
 
-    # Run verification
-    raw = verify_self_watermark(image_bytes, watermark_ids)
+    # Attach issued time (for response)
+    if raw and raw.get("watermark_id"):
+        wm = (
+            db.query(Watermark.created_at)
+            .filter(Watermark.id == raw["watermark_id"])
+            .first()
+        )
 
-    # Attach issued time from DB
-    if raw and raw.get("watermark_id") in watermark_created_at:
-        raw["created_at"] = watermark_created_at[raw["watermark_id"]]
+        if wm and wm.created_at:
+            raw["created_at"] = wm.created_at
 
     return interpret_verification_result(raw)

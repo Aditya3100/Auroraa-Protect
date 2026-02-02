@@ -12,11 +12,11 @@ DCT_POS_A = (3, 3)
 DCT_POS_B = (2, 4)
 
 # Robust embedding parameters (industry-style)
-STRENGTH = 18.0        # embedding amplitude
-REPEAT = 15            # redundancy per bit
-HASH_BITS = 48  # increase to 64 if needed
+STRENGTH = 24.0        # embedding amplitude
+REPEAT = 20            # redundancy per bit
+HASH_BITS = 64  # increase to 64 if needed
 
-ALGORITHM_VERSION="v2-dbscan"
+ALGORITHM_VERSION="v3-hmac"
 
 # Performance / safety limits
 MAX_CANDIDATES = 1000
