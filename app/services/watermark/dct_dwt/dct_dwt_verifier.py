@@ -11,6 +11,7 @@ from .watermark_config import (
     interpret_verification_result,
 )
 from .crypto import generate_bits
+import uuid
 
 # =========================================================
 # Helper
@@ -25,7 +26,6 @@ def similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 def verify_self_watermark(
     image_bytes: bytes,
-    watermarks: list,
     owner_id: str,
 ):
 
@@ -39,44 +39,47 @@ def verify_self_watermark(
             "reason": "extraction_failed",
         }
 
-    best_id = None
-    best_score = 0.0
+    # -------------------------
+    # Decode asset_id (first 128 bits = UUID)
+    # -------------------------
+    asset_bits = extracted[:128]
 
-    # 🔐 OWNER-BOUND VERIFICATION
-    for wm in watermarks:
+    asset_bytes = np.packbits(asset_bits).tobytes()
 
-        # Only allow secure watermarks
-        if wm.algorithm_version != "v3-hmac":
-            continue
-
-        # Recompute using CURRENT USER ONLY
-        expected = generate_bits(owner_id, wm.id)
-
-        score = similarity(extracted, expected)
-
-        # Strong match only
-        if score > best_score:
-            best_score = score
-            best_id = wm.id
-
-    # ❌ Reject if not strong enough
-    if best_id is None or best_score < 0.90:
+    try:
+        asset_id = str(uuid.UUID(bytes=asset_bytes))
+    except Exception:
         return {
             "verified": False,
-            "confidence": round(best_score, 3),
+            "confidence": 0.0,
+            "status": "not_verified",
+            "reason": "invalid_asset_id",
+        }
+
+    # -------------------------
+    # Recompute expected bits
+    # -------------------------
+    expected = generate_bits(owner_id, asset_id)
+
+    score = similarity(extracted, expected)
+
+    # -------------------------
+    # Verify
+    # -------------------------
+    if score < 0.90:
+        return {
+            "verified": False,
+            "confidence": round(score, 3),
             "status": "not_verified",
             "reason": "owner_mismatch",
         }
 
-    # ✅ Accept only strong owner match
     return {
         "verified": True,
-        "confidence": round(best_score, 3),
-        "status": confidence_to_status(best_score),
-        "watermark_id": best_id,
+        "confidence": round(score, 3),
+        "status": confidence_to_status(score),
+        "asset_id": asset_id,
     }
-
-
 
 
 # =========================================================
