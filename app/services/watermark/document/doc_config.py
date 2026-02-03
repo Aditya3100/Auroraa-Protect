@@ -1,0 +1,6 @@
+# DELTA_PT = 0.03
+# PAYLOAD_BITS = 256
+VERIFY_THRESHOLD = 0.75
+
+# ECC_BLOCK = 7   # Hamming(7,4)
+# ECC_DATA = 4

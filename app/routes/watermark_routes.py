@@ -14,10 +14,24 @@ from app.services.watermark.image.image_config import interpret_verification_res
 from fastapi.concurrency import run_in_threadpool
 from datetime import datetime, timezone
 
+from app.services.watermark.document.doc_crypto import generate_payload
+from app.services.watermark.document.doc_embedder import embed_pdf, embed_docx
+from app.services.watermark.document.doc_extractor import (
+    extract_pdf_bits,
+    extract_docx_bits,
+)
+from app.services.watermark.document.doc_verifier import verify
+import uuid, shutil, os
+from fastapi.responses import FileResponse
+import os
+
+TMP_DIR = "/tmp/watermark"
+os.makedirs(TMP_DIR, exist_ok=True)
+
 waterrouter = APIRouter(prefix="/watermark", tags=["Watermark"])
 
 @waterrouter.post("/upload")
-async def embed_watermark(
+async def embed_image_watermark(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -130,7 +144,7 @@ async def embed_watermark(
 #     return response
 
 @waterrouter.post("/verify")
-async def verify_self(
+async def verify_image_watermark(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -149,3 +163,98 @@ async def verify_self(
     )
 
     return interpret_verification_result(raw)
+
+@waterrouter.post("/embed/doc")
+async def embed_document_watermark(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    owner_id = current_user.get("user_id")
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    filename = (file.filename or "").lower()
+    if not filename.endswith((".pdf", ".docx")):
+        raise HTTPException(status_code=400, detail="Only PDF or DOCX supported")
+
+    mime_type = (file.content_type or "").lower()
+    content_type = map_content_type(mime_type)
+    if not content_type:
+        raise HTTPException(status_code=400, detail="Unsupported document type")
+
+    watermark = Watermark(
+        id=str(uuid.uuid4()),
+        owner_id=owner_id,
+        content_type=content_type,
+        mime_type=mime_type,
+        algorithm_version=ALGORITHM_VERSION,
+        status="active",
+    )
+
+    suffix = ".pdf" if filename.endswith(".pdf") else ".docx"
+    in_path = f"{TMP_DIR}/{uuid.uuid4()}{suffix}"
+    out_path = f"{TMP_DIR}/wm_{uuid.uuid4()}{suffix}"
+
+    with open(in_path, "wb") as f:
+        f.write(await file.read())
+
+    payload = generate_payload(watermark)
+
+    if suffix == ".pdf":
+        embed_pdf(in_path, out_path, payload, watermark.id)
+    else:
+        embed_docx(in_path, out_path, payload, watermark.id)
+
+    download_name = f"watermarked_{file.filename}"
+
+    return FileResponse(
+        path=out_path,
+        filename=download_name,
+        media_type=mime_type,
+        headers={
+            "X-Watermark-ID": watermark.id,
+            "X-Algorithm-Version": watermark.algorithm_version,
+        }
+    )
+
+@waterrouter.post("/verify/doc")
+async def verify_document_watermark(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    owner_id = current_user.get("user_id")
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    filename = (file.filename or "").lower()
+    if not filename.endswith((".pdf", ".docx")):
+        raise HTTPException(status_code=400, detail="Only PDF or DOCX supported")
+
+    mime_type = (file.content_type or "").lower()
+    content_type = map_content_type(mime_type)
+    if not content_type:
+        raise HTTPException(status_code=400, detail="Unsupported document type")
+
+    suffix = ".pdf" if filename.endswith(".pdf") else ".docx"
+    path = f"{TMP_DIR}/{uuid.uuid4()}{suffix}"
+
+    with open(path, "wb") as f:
+        f.write(await file.read())
+
+    if suffix == ".pdf":
+        extracted_bits = extract_pdf_bits(path)
+    else:
+        extracted_bits = extract_docx_bits(path)
+
+    # 🔐 Verification derives watermark_id internally
+    verified, score, watermark_id = verify(
+        extracted_bits=extracted_bits,
+        owner_id=owner_id,
+        algorithm_version=ALGORITHM_VERSION,
+    )
+
+    return {
+        "verified": verified,
+        "confidence": round(score, 3),
+        "watermark_id": watermark_id,
+    }
