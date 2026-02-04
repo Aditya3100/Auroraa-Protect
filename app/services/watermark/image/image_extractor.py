@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import pywt
-from .watermark_config import *
+from .image_config import *
 
 # =========================================================
 # OPTIONAL: GLOBAL BLOCK SHUFFLE (RECOMMENDED)

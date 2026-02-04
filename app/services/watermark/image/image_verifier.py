@@ -3,14 +3,14 @@ import numpy as np
 from sqlalchemy.orm import Session
 
 from app.models.models import Watermark
-from app.services.watermark.dct_dwt.dct_dwt_extractor import extract_bits_robust
-from .watermark_config import (
+from app.services.watermark.image.image_extractor import extract_bits_robust
+from .image_config import (
     HASH_BITS,
     MAX_CANDIDATES,
     confidence_to_status,
     interpret_verification_result,
 )
-from .crypto import generate_bits
+from .image_crypto import generate_bits
 import uuid
 
 # =========================================================

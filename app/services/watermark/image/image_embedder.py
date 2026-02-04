@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 import pywt
 import hashlib
-from .watermark_config import *
-from .crypto import generate_bits
+from .image_config import *
+from .image_crypto import generate_bits
 
 # =========================================================
 # OPTIONAL: GLOBAL BLOCK SHUFFLE (RECOMMENDED)

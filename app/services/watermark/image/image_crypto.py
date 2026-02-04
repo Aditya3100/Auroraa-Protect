@@ -4,7 +4,7 @@ import hashlib
 import numpy as np
 import uuid
 
-from app.services.watermark.dct_dwt.watermark_config import HASH_BITS
+from app.services.watermark.image.image_config import HASH_BITS
 
 
 # Load secret from .env

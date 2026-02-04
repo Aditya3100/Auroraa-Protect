@@ -6,11 +6,11 @@ from app.database.database import get_db
 from app.models.models import Watermark
 
 from app.crud.watermark_crud import map_content_type
-from app.services.watermark.dct_dwt.dct_dwt_verifier import verify_self_watermark
-from app.services.watermark.dct_dwt.dct_dwt_embedder import embed_watermark_robust
+from app.services.watermark.image.image_verifier import verify_self_watermark 
+from app.services.watermark.image.image_embedder import embed_watermark_robust
 from app.logger import get_current_user, get_username_from_auth
 
-from app.services.watermark.dct_dwt.watermark_config import interpret_verification_result, ALGORITHM_VERSION, confidence_to_status
+from app.services.watermark.image.image_config import interpret_verification_result, ALGORITHM_VERSION, confidence_to_status
 from fastapi.concurrency import run_in_threadpool
 from datetime import datetime, timezone
 
