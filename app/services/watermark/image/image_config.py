@@ -4,63 +4,131 @@
 
 from datetime import datetime, timezone
 
+
+# -------------------------------
 # Transform settings
+# -------------------------------
+
 DWT_WAVE = "haar"
 
-# Fixed mid-frequency DCT coefficient positions
 DCT_POS_A = (3, 3)
 DCT_POS_B = (2, 4)
 
-# Robust embedding parameters (industry-style)
-STRENGTH = 24.0        # embedding amplitude
-REPEAT = 20            # redundancy per bit
-HASH_BITS = 192  # increase to 64 if needed
 
-ALGORITHM_VERSION="v3-hmac"
+# -------------------------------
+# Embedding parameters
+# -------------------------------
 
-# Performance / safety limits
+STRENGTH = 50
+REPEAT = 40
+
+# Length of signal
+SIGNAL_LENGTH = 128
+
+# -------------------------------
+# Versioning
+# -------------------------------
+
+ALGORITHM_VERSION = "v3-continousid"
+
+
+# -------------------------------
+# Performance
+# -------------------------------
+
 MAX_CANDIDATES = 1000
 
-def confidence_to_status(confidence: float) -> str:
-    if confidence >= 0.75:
+
+# -------------------------------
+# Confidence policy (correlation)
+# -------------------------------
+
+def confidence_to_status(score: float) -> str:
+
+    if score >= 0.85:
         return "verified"
-    elif confidence >= 0.6:
+
+    elif score >= 0.70:
         return "most"
-    elif confidence >= 0.55:
+
+    elif score >= 0.55:
         return "likely"
+
     else:
         return "not_verified"
 
+
+# -------------------------------
+# Epoch helpers
+# -------------------------------
+
+def current_epoch() -> str:
+
+    now = datetime.now(timezone.utc)
+
+    quarter = (now.month - 1) // 3 + 1
+
+    return f"{now.year}-Q{quarter}"
+
+
+def previous_epochs(n: int = 4) -> list[str]:
+
+    epochs = []
+
+    now = datetime.now(timezone.utc)
+
+    year = now.year
+    quarter = (now.month - 1) // 3 + 1
+
+    for _ in range(n):
+
+        epochs.append(f"{year}-Q{quarter}")
+
+        quarter -= 1
+
+        if quarter == 0:
+            quarter = 4
+            year -= 1
+
+    return epochs
+
+# -------------------------------
+# Result formatting
+# -------------------------------
+
 def interpret_verification_result(result: dict) -> dict:
+
     if result is None:
         raise ValueError("interpret_verification_result received None")
 
     confidence = result["confidence"]
+
     status = confidence_to_status(confidence)
 
     if status == "verified":
-        label = "Verified Original"
+        label = "Strong Watermark Match"
         message = (
-            "This image is verified as authentic and issued by Auroraa for this owner."
+            "This image contains a strong Auroraa watermark "
+            "matching this owner."
         )
+
     elif status == "most":
-        label = "Verified, but Modified"
+        label = "Moderate Watermark Match"
         message = (
-            "This image is verified as authentic and issued by Auroraa, "
-            "but it has been modified."
+            "This image contains a detectable Auroraa watermark, "
+            "but has been modified."
         )
+
     elif status == "likely":
-        label = "Likely Authentic"
-        message = (
-            "This image likely belongs to this owner, but it has been heavily modified."
-        )
+        label = "Weak Watermark Match"
+        message = "A weak Auroraa watermark signal was detected."
+
     else:
         label = "Not Verified"
-        message = "This image could not be verified as authentic."
+        message = "No reliable Auroraa watermark was detected."
 
     issued_on = result.get("created_at")
 
-    # ensure ISO 8601 if datetime object
     if isinstance(issued_on, datetime):
         issued_on = issued_on.astimezone(timezone.utc).isoformat()
 
@@ -76,8 +144,8 @@ def interpret_verification_result(result: dict) -> dict:
         "issued_on": issued_on,
     }
 
-    # ✅ ONLY expose identity on strong DB-scan verification
     if status == "verified" and result.get("owner_id"):
+
         response["owner"] = {
             "id": result["owner_id"]
         }
