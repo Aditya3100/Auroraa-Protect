@@ -1,138 +1,145 @@
-import hashlib
+# image_verifier.py
+
 import numpy as np
-from sqlalchemy.orm import Session
 
-from app.models.models import Watermark
-from app.services.watermark.image.image_extractor import extract_bits_robust
+from .image_extractor import detect_watermark_signal
+from .image_crypto import generate_signal
 from .image_config import (
-    HASH_BITS,
-    MAX_CANDIDATES,
     confidence_to_status,
-    interpret_verification_result,
+    SIGNAL_LENGTH,
+    REPEAT,
 )
-from .image_crypto import generate_bits
-import uuid
-
-# =========================================================
-# Helper
-# =========================================================
-def similarity(a: np.ndarray, b: np.ndarray) -> float:
-    return float(np.mean(a == b))
 
 
-# =========================================================
-# SELF VERIFIER (OWNER-BOUND + SECURE)
-# =========================================================
+# --------------------------------
+# Correlation
+# --------------------------------
 
-def verify_self_watermark(
+def correlate(a: np.ndarray, b: np.ndarray) -> float:
+
+    L = min(len(a), len(b))
+
+    if L == 0:
+        return 0.0
+
+    a = a[:L]
+    b = b[:L]
+
+    num = np.dot(a, b)
+    den = np.linalg.norm(a) * np.linalg.norm(b)
+
+    if den == 0:
+        return 0.0
+
+    return float(num / den)
+
+
+# --------------------------------
+# SynthID Verifier
+# --------------------------------
+
+def verify_watermark(
     image_bytes: bytes,
     owner_id: str,
-):
+    asset_id: str,
+    epoch: str
+) -> dict:
 
-    extracted = extract_bits_robust(image_bytes, HASH_BITS)
+    # -----------------------------
+    # Extract raw deltas
+    # -----------------------------
 
-    if extracted is None:
+    observed = detect_watermark_signal(
+        image_bytes,
+        owner_id,
+        asset_id,
+        epoch
+    )
+
+    if observed is None:
         return {
             "verified": False,
             "confidence": 0.0,
             "status": "not_verified",
-            "reason": "extraction_failed",
+            "reason": "extraction_failed"
         }
 
-    # -------------------------
-    # Decode asset_id (first 128 bits = UUID)
-    # -------------------------
-    asset_bits = extracted[:128]
+    # -----------------------------
+    # Decode repetitions
+    # -----------------------------
 
-    asset_bytes = np.packbits(asset_bits).tobytes()
+    decoded = []
 
-    try:
-        asset_id = str(uuid.UUID(bytes=asset_bytes))
-    except Exception:
+    for i in range(0, len(observed), REPEAT):
+
+        chunk = observed[i:i + REPEAT]
+
+        if len(chunk) < REPEAT:
+            break
+
+        decoded.append(np.mean(chunk))
+
+    decoded = np.array(decoded, dtype=np.float32)
+
+    if len(decoded) == 0:
         return {
             "verified": False,
             "confidence": 0.0,
             "status": "not_verified",
-            "reason": "invalid_asset_id",
+            "reason": "decode_failed"
         }
 
-    # -------------------------
-    # Recompute expected bits
-    # -------------------------
-    expected = generate_bits(owner_id, asset_id)
+    # -----------------------------
+    # Generate expected signal
+    # -----------------------------
 
-    score = similarity(extracted, expected)
+    expected = generate_signal(
+        owner_id,
+        asset_id,
+        epoch
+    )
 
-    # -------------------------
-    # Verify
-    # -------------------------
-    if score < 0.90:
+    # -----------------------------
+    # Align length
+    # -----------------------------
+
+    L = min(len(decoded), len(expected))
+
+    decoded = decoded[:L]
+    expected = expected[:L]
+
+    if L == 0:
         return {
             "verified": False,
-            "confidence": round(score, 3),
+            "confidence": 0.0,
             "status": "not_verified",
-            "reason": "owner_mismatch",
+            "reason": "length_mismatch"
         }
+
+    # -----------------------------
+    # Normalize (zero mean / unit var)
+    # -----------------------------
+
+    decoded = (decoded - decoded.mean()) / (decoded.std() + 1e-6)
+    expected = (expected - expected.mean()) / (expected.std() + 1e-6)
+
+    # -----------------------------
+    # Correlate
+    # -----------------------------
+
+    score = correlate(decoded, expected)
+
+    status = confidence_to_status(score)
+
+    # -----------------------------
+    # Return
+    # -----------------------------
 
     return {
-        "verified": True,
-        "confidence": round(score, 3),
-        "status": confidence_to_status(score),
+        "verified": status != "not_verified",
+        "confidence": round(float(score), 3),
+        "status": status,
+        "owner_id": owner_id,
         "asset_id": asset_id,
+        "epoch": epoch,
     }
-
-
-# =========================================================
-# 1️⃣ DB-SCAN VERIFIER (PLATFORM ATTRIBUTION)
-# =========================================================
-# def verify_image_owner_robust(image_bytes: bytes, db: Session) -> dict:
-#     candidates = db.query(Watermark).filter(
-#         Watermark.status == "active"
-#     ).limit(MAX_CANDIDATES).all()
-
-#     best = None
-#     best_score = 0.0
-#     second_best = 0.0
-
-#     for wm in candidates:
-#         expected_bits = generate_bits(wm.id)
-
-#         extracted = extract_bits_robust(
-#             image_bytes=image_bytes,
-#             bit_length=len(expected_bits)
-#         )
-#         if extracted is None:
-#             continue
-
-#         score = similarity(extracted, expected_bits)
-
-#         if score > best_score:
-#             second_best = best_score
-#             best_score = score
-#             best = wm
-#         elif score > second_best:
-#             second_best = score
-
-#     if best and best_score >= 0.7:
-#         if second_best >= best_score - 0.03:
-#             return {
-#                 "verified": False,
-#                 "confidence": round(best_score, 3),
-#                 "status": "not_verified",
-#                 "reason": "ambiguous_match",
-#             }
-
-#         return {
-#             "verified": True,
-#             "confidence": round(best_score, 3),
-#             "status": confidence_to_status(best_score),
-#             "watermark_id": best.id,
-#             "owner_id": best.owner_id,
-#         }
-
-#     return {
-#         "verified": False,
-#         "confidence": round(best_score, 3),
-#         "status": "not_verified",
-#         "reason": "no_confident_match",
-#     }
