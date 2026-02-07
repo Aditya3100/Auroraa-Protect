@@ -117,7 +117,7 @@ async def embed_image_watermark(
     # Return image
     return Response(
         content=watermarked_bytes,
-        media_type="image/png",
+        media_type="image/jpeg",
         headers={
             "X-Watermark-ID": watermark.id,
             "X-Owner-ID": owner_id,

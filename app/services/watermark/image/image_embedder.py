@@ -94,12 +94,12 @@ def embed_watermark(
     )
 
     # Encode JPEG
-    # ok, enc = cv2.imencode(
-    #     ".jpg",
-    #     out,
-    #     [cv2.IMWRITE_JPEG_QUALITY, 90]
-    # )
-    ok, enc = cv2.imencode(".png", out)
+    ok, enc = cv2.imencode(
+        ".jpg",
+        out,
+        [cv2.IMWRITE_JPEG_QUALITY, 90]
+    )
+    # ok, enc = cv2.imencode(".png", out)
 
     if not ok:
         raise RuntimeError("encoding failed")
