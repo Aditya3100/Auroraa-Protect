@@ -35,7 +35,7 @@ def correlate(a: np.ndarray, b: np.ndarray) -> float:
 
 
 # --------------------------------
-# SynthID Verifier
+# Watermark Verifier
 # --------------------------------
 
 def verify_watermark(
@@ -65,29 +65,54 @@ def verify_watermark(
         }
 
     # -----------------------------
-    # Decode repetitions
+    # Decode repetitions (3-band aware)
     # -----------------------------
 
-    decoded = []
+    band_size = SIGNAL_LENGTH * REPEAT
 
-    for i in range(0, len(observed), REPEAT):
+    decoded_bands = []
 
-        chunk = observed[i:i + REPEAT]
+    for b in range(3):
 
-        if len(chunk) < REPEAT:
-            break
+        start = b * band_size
+        end = start + band_size
 
-        decoded.append(np.mean(chunk))
+        band_obs = observed[start:end]
 
-    decoded = np.array(decoded, dtype=np.float32)
+        if len(band_obs) < band_size:
+            continue
 
-    if len(decoded) == 0:
+        band_decoded = []
+
+        for i in range(0, len(band_obs), REPEAT):
+
+            chunk = band_obs[i:i + REPEAT]
+
+            if len(chunk) < REPEAT:
+                break
+
+            band_decoded.append(np.mean(chunk))
+
+        if band_decoded:
+            decoded_bands.append(
+                np.array(band_decoded, dtype=np.float32)
+            )
+
+    # Fuse bands
+    if not decoded_bands:
         return {
             "verified": False,
             "confidence": 0.0,
             "status": "not_verified",
             "reason": "decode_failed"
         }
+
+    min_len = min(len(b) for b in decoded_bands)
+
+    decoded = np.mean(
+        [b[:min_len] for b in decoded_bands],
+        axis=0
+    )
 
     # -----------------------------
     # Generate expected signal
@@ -117,7 +142,7 @@ def verify_watermark(
         }
 
     # -----------------------------
-    # Normalize (zero mean / unit var)
+    # Normalize
     # -----------------------------
 
     decoded = (decoded - decoded.mean()) / (decoded.std() + 1e-6)
