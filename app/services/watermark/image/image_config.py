@@ -3,6 +3,28 @@
 # --------------------------------
 
 from datetime import datetime, timezone
+import math
+
+# -------------------------------
+# Adaptive Strength
+# -------------------------------
+
+# REF_SIZE = 1024 * 1024   # reference area (1MP)
+# STRENGTH = 50       # your current value
+
+
+# def adaptive_strength(h: int, w: int) -> float:
+#     """
+#     Scale watermark strength by image size.
+#     """
+#     area = h * w
+
+#     scale = math.sqrt(area / REF_SIZE)
+
+#     # Clamp to safe range
+#     scale = max(0.6, min(scale, 1.8))
+
+#     return STRENGTH * scale
 
 
 # -------------------------------
@@ -21,9 +43,13 @@ DCT_POS_B = (2, 4)
 
 STRENGTH = 50
 REPEAT = 40
-
-# Length of signal
 SIGNAL_LENGTH = 128
+
+# -------------------------------
+# Resize normalization
+# -------------------------------
+
+TARGET = 1024
 
 # -------------------------------
 # Versioning
