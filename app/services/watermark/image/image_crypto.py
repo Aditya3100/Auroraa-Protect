@@ -15,12 +15,13 @@ if not SECRET:
 SECRET = SECRET.encode()
 
 
-def generate_signal(owner_id: str, asset_id: str, epoch: str) -> np.ndarray:
+def generate_signal(owner_id: str, epoch: str) -> np.ndarray:
     """
     Generate style continuous watermark signal.
     """
 
-    msg = f"AURORAA|{owner_id}|{asset_id}|{epoch}".encode()
+    # asset_id is IGNORED for owner-level uniqueness
+    msg = f"AURORAA|{owner_id}|{epoch}".encode()
 
     digest = hmac.new(
         SECRET,
@@ -37,9 +38,10 @@ def generate_signal(owner_id: str, asset_id: str, epoch: str) -> np.ndarray:
 
     return signal
 
-def generate_shuffle_seed(owner_id, asset_id, epoch):
+def generate_shuffle_seed(owner_id, epoch):
 
-    msg = f"SHUFFLE|{owner_id}|{asset_id}|{epoch}".encode()
+    # asset_id is IGNORED
+    msg = f"SHUFFLE|{owner_id}|{epoch}".encode()
 
     digest = hmac.new(
         SECRET,
@@ -49,7 +51,7 @@ def generate_shuffle_seed(owner_id, asset_id, epoch):
 
     return int.from_bytes(digest[:8], "big")
 
-def shuffled_blocks(h, w, owner_id, asset_id, epoch):
+def shuffled_blocks(h, w, owner_id, epoch):
 
     blocks = [
         (i, j)
@@ -60,7 +62,6 @@ def shuffled_blocks(h, w, owner_id, asset_id, epoch):
 
     seed = generate_shuffle_seed(
         owner_id,
-        asset_id,
         epoch
     )
 

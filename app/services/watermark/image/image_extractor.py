@@ -19,7 +19,6 @@ from .image_crypto import shuffled_blocks
 def detect_watermark_signal(
     image_bytes: bytes,
     owner_id: str,
-    asset_id: str,
     epoch: str
 ) -> np.ndarray | None:
 
@@ -75,7 +74,6 @@ def detect_watermark_signal(
             band.shape[0],
             band.shape[1],
             owner_id,
-            asset_id,
             epoch
         )
 

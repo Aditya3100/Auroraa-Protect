@@ -41,7 +41,6 @@ def correlate(a: np.ndarray, b: np.ndarray) -> float:
 def verify_watermark(
     image_bytes: bytes,
     owner_id: str,
-    asset_id: str,
     epoch: str
 ) -> dict:
 
@@ -52,7 +51,6 @@ def verify_watermark(
     observed = detect_watermark_signal(
         image_bytes,
         owner_id,
-        asset_id,
         epoch
     )
 
@@ -120,7 +118,6 @@ def verify_watermark(
 
     expected = generate_signal(
         owner_id,
-        asset_id,
         epoch
     )
 
@@ -165,6 +162,5 @@ def verify_watermark(
         "confidence": round(float(score), 3),
         "status": status,
         "owner_id": owner_id,
-        "asset_id": asset_id,
         "epoch": epoch,
     }

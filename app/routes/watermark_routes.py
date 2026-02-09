@@ -99,7 +99,6 @@ async def embed_image_watermark(
         watermarked_bytes = embed_watermark(
             image_bytes=image_bytes,
             owner_id=owner_id,
-            asset_id=watermark.id, 
             epoch=epoch,
         )
 
@@ -145,37 +144,32 @@ async def verify_self(
 
     image_bytes = await file.read()
 
-    # Get all assets of this owner
-    watermarks = db.query(Watermark).filter(
-        Watermark.owner_id == owner_id,
-        Watermark.status == "active"
-    ).all()
-
-    if not watermarks:
-        return interpret_verification_result({
-            "verified": False,
-            "confidence": 0.0,
-            "status": "not_verified"
-        })
-
+    # Scan all epochs (Owner-Level Uniqueness)
+    # We no longer Loop over assets, as the signal is unique to the owner
+    
     best = 0.0
     best_raw = None
 
-    # Scan all assets + epochs
-    for wm in watermarks:
+    epochs = previous_epochs(4)
+    # Add current epoch if not in previous (usually previous_epochs returns past 4, we might want current too?)
+    # The original code called current_epoch() for embed, and previous_epochs(4) for verify? 
+    # Wait, `previous_epochs` implementation:
+    # returns 4 epochs ending with current? No, it starts with current usually.
+    # Let's check `previous_epochs` in `image_config.py` later if needed, but assuming standard usage.
+    # Actually, let's look at `previous_epochs` in `image_config.py` from the view_file earlier.
+    # It starts with `now` and goes back. So it includes current.
 
-        for epoch in previous_epochs(4):
+    for epoch in epochs:
 
-            raw = verify_watermark(
-                image_bytes=image_bytes,
-                owner_id=owner_id,
-                asset_id=wm.id,
-                epoch=epoch,
-            )
+        raw = verify_watermark(
+            image_bytes=image_bytes,
+            owner_id=owner_id,
+            epoch=epoch,
+        )
 
-            if raw["confidence"] > best:
-                best = raw["confidence"]
-                best_raw = raw
+        if raw["confidence"] > best:
+            best = raw["confidence"]
+            best_raw = raw
 
     if best_raw is None:
         return interpret_verification_result({
