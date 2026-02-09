@@ -19,7 +19,6 @@ from .image_crypto import generate_signal, shuffled_blocks
 def embed_watermark(
     image_bytes: bytes,
     owner_id: str,
-    asset_id: str,
     epoch: str
 ) -> bytes:
 
@@ -46,7 +45,7 @@ def embed_watermark(
     # --------------------------------
     # Generate watermark signal
     # --------------------------------
-    signal = generate_signal(owner_id, asset_id, epoch)
+    signal = generate_signal(owner_id, epoch)
 
     # --------------------------------
     # Convert to Y channel
@@ -80,7 +79,6 @@ def embed_watermark(
             band.shape[0],
             band.shape[1],
             owner_id,
-            asset_id,
             epoch
         )
 
@@ -109,7 +107,6 @@ def embed_watermark(
             band.shape[0],
             band.shape[1],
             owner_id,
-            asset_id,
             epoch
         )
 
